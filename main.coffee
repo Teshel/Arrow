@@ -1,13 +1,15 @@
-class FieldManager
-	constructor: (@width, @height) ->
+class GridManager
+	constructor: (@width, @height, @stage) ->
 		@squares = []
-		@grid = ((new Point(x, y) for y in [0..@height]) for x in [0...@width])
+		# makes a width x height matrix
+		@grid = ((new Point(x, y) for y in [0...@height]) for x in [0...@width])
 
 	step: ->
 		for square in @squares
 			do (square) ->
 
-	redraw: ->
+	at: (point) ->
+		@grid[point.x][point.y]
 
 	inBounds: (point) ->
 		if (point.x <= @width) and (point.x >= 0) and (point.y <= @height) and (point.y >= 0)
@@ -15,29 +17,65 @@ class FieldManager
 		else
 			return false
 
+
+class GameManager extends GridManager
+	addSquare: (square) ->
+		if this.at(square.point).object == null
+			@squares << square
+			square.moveTo(square.point)
+			@stage.addChild(square.shape)
+			@stage.addChild(square.counter)
+		else if (this.at(square.point).object instanceof Square) and (this.at(square.point).object.color == square.color)
+			this.at(square.point).object.quantity += square.quantity
+			square.setQuantityView()
+
+
 class Point
-	@object
 	constructor: (@x, @y) ->
+		@object = null
 
-class Square
-	constructor: (@point, @world, @color) ->
+class Entity
+	constructor: (@point, @grid) ->
+
+	moveTo: (point) ->
+		if @grid.inBounds(point)
+			@shape.x = point.x * 55
+			@shape.y = point.y * 55
+			@grid.at(point).object = this
+			@point.object = null
+			@point = @grid.at(point)
+
+class Square extends Entity
+	constructor: (@point, @grid, @color) ->
 		@shape = new createjs.Shape()
-		@shape.graphics.beginFill("blue").drawRoundRect(0, 0, 40, 40, 1)
-		@shape.x = @point.x
-		@shape.y = @point.y
-		@world.stage.addChild(@shape)
+		@shape.graphics.beginFill(@color).drawRoundRect(0, 0, 50, 50, 3)
+		@shape.x = @point.x * 55
+		@shape.y = @point.y * 55
+		@quantity = 1
+		@counter = new createjs.Text(@quantity, "16px Arial", "grey")
+		this.setQuantityView()
 
-	moveTo: (@point) ->
-		if @grid.inBounds(@point)
-			shape.x = @point.x * 50
-			shape.y = @point.y * 50
+	setQuantityView: ->
+		@counter.text = @quantity
+		@counter.x = 10 + @point.x * 55
+		@counter.y = 10 + @point.y * 55
+
+	moveTo: (point) ->
+		super point
+		this.setQuantityView()
+
+class Action
+	constructor: (@entity, @action) ->
+	activate: -> do @action
 
 # class ArrowSquare
 
 # For debug in console
-Entity = 1
-Renderer = 1
+gm = 1
 stage = 1
+
+p = (x, y) ->
+	new Point(x, y)
 
 $(document).ready ->
 	canvas = document.getElementById("myCanvas")
@@ -67,6 +105,7 @@ $(document).ready ->
 	    # set CreateJS to render scaled
 	    stage.scaleX = stage.scaleY = window.devicePixelRatio
 	
+	gm = new GameManager(10, 8, stage);
 	# circle = new createjs.Shape()
 	# circle.graphics.beginFill("red").drawCircle(0, 0, 50)
 	# circle.x = 100
@@ -79,4 +118,5 @@ $(document).ready ->
 	# rect.y = 100
 	# stage.addChild(rect)
 
-	createjs.Ticker.addEventListener("tick", stage).setInterval(1000);
+	createjs.Ticker.addEventListener("tick", stage)
+	#createjs.Ticker.setInterval(1000);
